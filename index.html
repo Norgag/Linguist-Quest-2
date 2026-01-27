@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Linguist Quest</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+/* 1. GLOBAL SETTINGS */
+* { box-sizing: border-box; }
+html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    overflow: hidden; background: #000;
+    font-family: 'Press Start 2P', cursive; color: white;
+}
+
+#game-container {
+    width: 100%; height: 100%;
+    background: url("images/battle_bg.png") center/cover no-repeat;
+    position: relative; display: flex; flex-direction: column;
+}
+
+.screen { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
+.screen.active { display: flex; }
+
+/* 2. TYPOGRAPHY & BUTTONS */
+h1 {
+    color: #ffcc00; text-align: center; margin: 0;
+    padding-top: 10vh; font-size: 5vh; line-height: 1.5;
+    text-shadow: 4px 4px 0 #000;
+}
+
+.menu {
+    margin-top: 5vh; display: grid; grid-template-columns: 1fr 1fr;
+    gap: 20px; width: 90%; max-width: 600px; 
+}
+
+.btn {
+    padding: 3vh 2vw; background: #7e2553; border: 4px solid white;
+    color: white; font-size: 2vh; cursor: pointer; font-family: inherit;
+    box-shadow: 6px 6px 0 rgba(0,0,0,0.5); transition: all 0.1s;
+}
+
+.retry-btn {
+    padding: 2.5vh 5vw; background: #ffcc00; color: #000;
+    border: 4px solid #fff; font-family: 'Press Start 2P', cursive;
+    font-size: 2.2vh; cursor: pointer; text-transform: uppercase;
+    box-shadow: 0 8px 0 #b38f00; animation: pulse-glow 1.5s infinite;
+}
+
+/* 3. NEXT BUTTON (Initially Hidden) */
+#next-btn {
+    display: none; /* Hidden by default */
+    margin-top: 2vh;
+    padding: 1.5vh 4vw; background: #fff; color: #000;
+    border: 3px solid #ffcc00; font-family: 'Press Start 2P', cursive;
+    font-size: 1.8vh; cursor: pointer; text-transform: uppercase;
+    box-shadow: 0 6px 0 #997a00;
+}
+#next-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #997a00; }
+
+/* 4. ANSWER FEEDBACK */
+.correct-choice { background-color: #00e436 !important; border-color: #fff !important; color: #000 !important; }
+.wrong-choice { background-color: #ff004d !important; border-color: #fff !important; }
+
+/* 5. BATTLE UI */
+#music-toggle, #reset-btn, #battle-music-toggle {
+    position: absolute; font-family: inherit; z-index: 100;
+    cursor: pointer; font-size: 1.3vh; padding: 1.5vh 2vh; 
+    border: 3px solid; color: #f0f0f0; border-radius: 2px;
+}
+#music-toggle { top: 2vh; right: 2vh; background: #8d6e63; border-color: #d7ccc8; }
+#reset-btn { top: 2vh; left: 2vh; background: #546e7a; border-color: #cfd8dc; }
+#battle-music-toggle { top: 8vh; left: 2vh; background: #4e342e; border-color: #a1887f; }
+
+#battle-stage {
+    flex: 1; width: 100%; max-width: 1000px; 
+    display: flex; justify-content: space-between; 
+    align-items: flex-end; padding: 0 4vw 5vh 4vw; position: relative; 
+}
+
+#platform-ground {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 90%; height: 12vh; background: #3e2723;
+    border-top: 5px solid #795548; border-radius: 50% 50% 0 0 / 20px 20px 0 0;
+    z-index: 1;
+}
+
+.actor { width: 30vh; height: 30vh; background-repeat: no-repeat; background-size: contain; background-position: bottom; position: relative; z-index: 10; margin-bottom: 3vh; }
+#player { background-image: url("images/hero_warrior.png"); }
+
+.hp-container { position: absolute; top: -4vh; left: 10%; width: 80%; height: 1.5vh; background: black; border: 2px solid white; }
+#monster-hp, #player-hp { height: 100%; width: 100%; background: #00e436; transition: width 0.3s; }
+
+#ui {
+    background: rgba(0,0,0,0.85); border-top: 4px solid white;
+    width: 100%; height: 40vh; /* Increased slightly to fit next button */
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 2vh; z-index: 20;
+}
+#question-text { width: 90%; max-width: 800px; text-align: center; font-size: 2.2vh; margin-bottom: 2vh; color: #ffcc00; }
+#options-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5vh; width: 90%; max-width: 800px; }
+.centered-layout { display: flex !important; justify-content: center !important; width: 100%; }
+
+.answer-btn { background: black; border: 2px solid #5f574f; color: white; padding: 2vh; font-size: 1.6vh; font-family: inherit; cursor: pointer; }
+
+#dialogue-box {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: white; color: black; padding: 4vh; border: 6px solid black; 
+    display: none; z-index: 200; text-align: center; width: 80%; max-width: 600px;
+}
+
+/* ANIMATIONS */
+@keyframes lunge { 0% { transform: translateX(0); } 50% { transform: translateX(30vw); } 100% { transform: translateX(0); } }
+@keyframes monster-lunge { 0% { transform: translateX(0); } 50% { transform: translateX(-30vw); } 100% { transform: translateX(0); } }
+@keyframes damage-shake { 0% { transform: translateX(0); } 25% { transform: translateX(-15px); } 75% { transform: translateX(15px); } 100% { transform: translateX(0); } }
+@keyframes player-die { 100% { transform: rotate(-90deg) translateY(50px); opacity: 0; } }
+
+.attacking { animation: lunge 0.4s ease-in-out; }
+.monster-attacking { animation: monster-lunge 0.4s ease-in-out; }
+.taking-damage { animation: damage-shake 0.5s ease-in-out; }
+.dead { animation: player-die 1.5s forwards; }
+</style>
+</head>
+
+<body>
+<audio id="homeMusic" src="sounds/home_music.mp3" loop></audio>
+<audio id="battleMusic" src="sounds/battle_music.mp3" loop></audio>
+
+<div id="game-container">
+    <div id="home-screen" class="screen active">
+        <button id="music-toggle">MUSIC: OFF</button>
+        <h1>LINGUIST<br>QUEST</h1>
+        <div class="menu">
+            <button class="btn" data-lang="English">ENGLISH</button>
+            <button class="btn" data-lang="Hindi">HINDI</button>
+            <button class="btn" data-lang="French">FRENCH</button>
+            <button class="btn" data-lang="Sanskrit">SANSKRIT</button>
+        </div>
+    </div>
+
+    <div id="battle-screen" class="screen">
+        <button id="reset-btn">Reset</button>
+        <button id="battle-music-toggle">BATTLE MUSIC: ON</button>
+        <div id="battle-stage">
+            <div id="platform-ground"></div>
+            <div id="player" class="actor"><div class="hp-container"><div id="player-hp"></div></div></div>
+            <div id="monster" class="actor"><div class="hp-container"><div id="monster-hp"></div></div></div>
+        </div>
+        <div id="ui">
+            <div id="question-text">Loading...</div>
+            <div id="options-container"></div>
+            <button id="next-btn">Next Question →</button>
+        </div>
+        <div id="dialogue-box"></div>
+    </div>
+</div>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
